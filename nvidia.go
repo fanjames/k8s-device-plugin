@@ -46,7 +46,7 @@ func getDevices() []*pluginapi.Device {
 	for i := uint(0); i < n; i++ {
 		d, err := nvml.NewDeviceLite(i)
 		check(err)
-		for j := uint(0); j < getNumberContainersPerGPU(); j++ {
+		for j := uint(0); j < uint(getNumberContainersPerGPU()); j++ {
 			devs = append(devs, &pluginapi.Device{
 				ID:     generateFakeDeviceID(d.UUID, j),
 				Health: pluginapi.Healthy,
