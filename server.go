@@ -164,13 +164,15 @@ func (m *NvidiaDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.Alloc
 				"NVIDIA_VISIBLE_DEVICES": strings.Join(realDeviceIDs, ","),
 			},
 		}
+		fmt.Println("! Try to llocate device: " + strings.Join(realDeviceIDs, ","))
 
 		for _, id := range req.DevicesIDs {
 			if !deviceExists(devs, id) {
-				return nil, fmt.Errorf("invalid allocation request: unknown device: %s", id)
+				err := fmt.Errorf("invalid allocation request: unknown device: %s", id)
+				fmt.Printf("device does not exist: %v", err)
+				return nil, err
 			}
 		}
-
 		responses.ContainerResponses = append(responses.ContainerResponses, &response)
 	}
 
