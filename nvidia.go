@@ -3,7 +3,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"os"
+	"strconv"
 	"strings"
 
 	"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml"
@@ -18,6 +21,23 @@ func check(err error) {
 	}
 }
 
+func generateFakeDeviceID(realID string, fakeCounter uint) string {
+	return fmt.Sprintf("%s-_-%d", realID, fakeCounter)
+}
+
+func extractRealDeviceID(fakeDeviceID string) string {
+	return strings.Split(fakeDeviceID, "-_-")[0]
+}
+
+func getNumberContainersPerGPU() (numGPU int) {
+	strNum := os.Getenv(envNumberContainersPerGPU)
+	numGPU, _ = strconv.Atoi(strNum)
+	if numGPU < 1 {
+		numGPU = 1
+	}
+	return
+}
+
 func getDevices() []*pluginapi.Device {
 	n, err := nvml.GetDeviceCount()
 	check(err)
@@ -26,10 +46,12 @@ func getDevices() []*pluginapi.Device {
 	for i := uint(0); i < n; i++ {
 		d, err := nvml.NewDeviceLite(i)
 		check(err)
-		devs = append(devs, &pluginapi.Device{
-			ID:     d.UUID,
-			Health: pluginapi.Healthy,
-		})
+		for j := uint(0); j < getNumberContainersPerGPU(); j++ {
+			devs = append(devs, &pluginapi.Device{
+				ID:     generateFakeDeviceID(d.UUID, j),
+				Health: pluginapi.Healthy,
+			})
+		}
 	}
 
 	return devs
@@ -49,9 +71,10 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 	defer nvml.DeleteEventSet(eventSet)
 
 	for _, d := range devs {
-		err := nvml.RegisterEventForDevice(eventSet, nvml.XidCriticalError, d.ID)
+		realDeviceID := extractRealDeviceID(d.ID)
+		err := nvml.RegisterEventForDevice(eventSet, nvml.XidCriticalError, realDeviceID)
 		if err != nil && strings.HasSuffix(err.Error(), "Not Supported") {
-			log.Printf("Warning: %s is too old to support healthchecking: %s. Marking it unhealthy.", d.ID, err)
+			log.Printf("Warning: %s (%s) is too old to support healthchecking: %s. Marking it unhealthy.", realDeviceID, d.ID, err)
 
 			xids <- d
 			continue
@@ -90,7 +113,7 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 		}
 
 		for _, d := range devs {
-			if d.ID == *e.UUID {
+			if extractRealDeviceID(d.ID) == *e.UUID {
 				xids <- d
 			}
 		}
