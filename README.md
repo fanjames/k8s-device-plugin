@@ -1,3 +1,5 @@
+This repo is forked from https://hub.docker.com/r/cvaldit/nvidia-k8s-device-plugin/. This modified plugin makes it possible to share one GPU among multiple jobs. It remains to be tested on my own k8s cluster.
+
 # NVIDIA device plugin for Kubernetes
 
 ## Table of Contents
